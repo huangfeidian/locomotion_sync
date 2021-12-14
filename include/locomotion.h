@@ -14,16 +14,19 @@ namespace spiritsaway::locomotion_sync
 		z_full,
 		max
 	};
-	struct vec3_sync_data
+	class vec3_sync_data
 	{
 		std::uint8_t flags = 0;
 		std::array<std::int8_t, 12> data;
+		std::array<float, 3> sync_data;
+	public:
 		const std::uint8_t data_sz()const
 		{
 			std::uint8_t test_flag = 1;
-			std::uint8_t result = 0;
+			std::uint8_t result = 1;
 			for (std::uint8_t i = std::uint8_t(vec3_sync_flags::x_partial); i < std::uint8_t(vec3_sync_flags::max); i++)
 			{
+				test_flag = 1 << i;
 				if (flags & test_flag)
 				{
 					if (i % 2 == 0)
@@ -46,13 +49,13 @@ namespace spiritsaway::locomotion_sync
 		{
 
 		}
-		void diff(const float* old_data, const float* new_data, float scale)
+		void diff(const float* new_data,  float scale)
 		{
 			std::uint8_t data_fill_next = 0;
-
+			flags = 0;
 			for (int i = 0; i < 3; i++)
 			{
-				float old_v = old_data[i];
+				float old_v = sync_data[i];
 				float new_v = new_data[i];
 				int diff_v = (new_v - old_v) / scale;
 				if (diff_v > 254 || diff_v < -255)
@@ -61,29 +64,34 @@ namespace spiritsaway::locomotion_sync
 					std::int8_t* new_v_ptr = reinterpret_cast<std::int8_t*>(&new_v);
 					std::copy(new_v_ptr, new_v_ptr + 4, data.begin() + data_fill_next);
 					data_fill_next += 4;
+					sync_data[i] = new_v;
 				}
 				else if (diff_v == 0)
 				{
 				}
 				else
 				{
-					flags |= (0x2 << (i * 2));
+					flags |= (0x1 << (i * 2));
 					data[data_fill_next] = std::int8_t(diff_v);
+					data_fill_next += 1;
+					sync_data[i] += diff_v * scale;
 
 				}
 			}
 		}
 		void full(const float* new_data)
 		{
+			flags = 0;
 			for (int i = 0; i < 3; i++)
 			{
-				float new_v = new_data[2 - i];
+				float new_v = new_data[i];
 
 				flags <<= 2;
 				flags |= 0x2;
 				std::int8_t* new_v_ptr = reinterpret_cast<std::int8_t*>(&new_v);
-				std::copy(new_v_ptr, new_v_ptr + 4, data.begin() + i * 2);
+				std::copy(new_v_ptr, new_v_ptr + 4, data.begin() + i * 4);
 			}
+			std::copy(new_data, new_data + 3, sync_data.data());
 		}
 		void replay(float* dest, float scale) const
 		{
