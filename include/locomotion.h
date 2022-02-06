@@ -49,7 +49,11 @@ namespace spiritsaway::locomotion_sync
 		{
 
 		}
-		void diff(const float* new_data,  float scale)
+		const std::array<float, 3>& internal_data() const
+		{
+			return sync_data;
+		}
+		void diff(const float* new_data, float scale)
 		{
 			std::uint8_t data_fill_next = 0;
 			flags = 0;
@@ -121,20 +125,20 @@ namespace spiritsaway::locomotion_sync
 			std::copy(data.begin(), data.begin() + data_sz(), buffer + 1);
 			return cur_data_sz + 1;
 		}
-		bool decode(const std::int8_t* buffer, std::uint32_t remain_sz)
+		std::uint8_t decode(const std::int8_t* buffer, std::uint32_t remain_sz)
 		{
 			if (remain_sz == 0)
 			{
-				return false;
+				return 0;
 			}
 			flags = *reinterpret_cast<const std::uint8_t*>(buffer);
 			auto cur_data_sz = data_sz();
 			if (remain_sz < cur_data_sz + 1)
 			{
-				return false;
+				return 0;
 			}
 			std::copy(buffer + 1, buffer + 1 + cur_data_sz, data.begin());
-			return true;
+			return cur_data_sz + 1;
 		}
 	};
 }
